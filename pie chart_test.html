@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+  <meta charset="utf-8">
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- d3.js的引用要放在Header內 -->
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2017 by kurotanshi (http://jsbin.com/niyoqug/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+  <title>JS Bin</title>
+
+<style id="jsbin-css">
+.nodeText {
+  font-size: 15px;
+}
+</style>
+</head>
+<body>
+  <script language="javascript">
+var Today=new Date();
+var tMonth="";
+  if((Today.getMonth()+1)<10){
+    tMonth = "0" +(Today.getMonth()+1);
+  }
+var width = 700; 
+var height = 700; 
+var radius = 300;
+
+var svg = d3.select("body") 
+  .append("svg") 
+  .attr("width", width) 
+  .attr("height", height) 
+  .append("g")
+  .attr("transform", "translate(300, 300)");
+
+var arc = d3.svg.arc()
+  .startAngle(function(d) {
+    return d.x;
+  })
+  .endAngle(function(d) {
+    return d.x + d.dx;
+  })
+  .innerRadius(function(d) {
+    return Math.sqrt(d.y);
+  })
+  .outerRadius(function(d) {
+    return Math.sqrt(d.y + d.dy);
+  });
+
+$(function() {
+var path = {
+    url: 'http://opendata.epa.gov.tw/ws/Data/RainTenMin/?%24orderby=PublishTime%20desc&%24skip=0&%24top=1000&format=json', 
+    dataType: 'jsonp',
+  }
+$.ajax(path)
+  .done(function (d) {   //如果成功
+    data = d;
+    runChart(Today.getFullYear()+ "-" + tMonth + "-" + Today.getDate())
+  })
+  .fail(function(jqxhr, textStatus, error){
+  alert("GG");
+    console.log('GG,沒戲唱了'); //失敗
+});
+
+
+function reSortRoot(root,value_key) {
+    for (var key in root) {
+      if (key == "key") {
+        root.name = root.key;
+        delete root.key;
+      }
+      if (key == "values") {
+        root.children = [];
+        for (item in root.values) {
+          root.children.push(reSortRoot(root.values[item],value_key));
+        }
+        delete root.values;
+      }
+      if (key == "Rainfall24hr") {
+        root.value = parseFloat(root['Rainfall24hr']);
+        delete root['Rainfall24hr'];
+      }
+    }
+    return root;
+  }
+
+runChart = function(filter){  
+  console.log(data)
+  var nodesByType = d3.nest() //轉換成巢狀架構
+    .key(function(d) { return d.County; })
+    .key(function(d) { return d.Township; })
+    .key(function(d) { return d.SiteName; })
+    .entries(data);
+  console.log(nodesByType, "基本d3.js巢狀結構轉換")
+  var root = {};
+  // 將資料命名
+  root.key = "雨量";
+  root.values = nodesByType;
+  // 修改資料的的key, children名稱，並且依指定規則套用。
+  root = reSortRoot(root,"KpData"); //layout用巢狀架構
+  console.log(root, "layout用巢狀架構")
+
+  // size 指定圖案大小, 利用 .nodes 帶入資料
+  var nodes = d3.layout.partition()
+                .size([2 * Math.PI, radius * radius*1.5])
+                .nodes(root);                
+  
+  var color = d3.scale.category20();
+  var gArcs = svg.selectAll("g")
+    .data(nodes)
+    .enter()
+    .append("g");
+
+  gArcs.append("path")
+    .attr("display", function(d) { //圆中心的弧不绘制
+      //return d.depth ? null : "none";
+      return (d.depth <= 2 ) && d.depth ? null : "none";
+    })
+    .attr("d", arc) //使用弧生成器
+    .style("stroke", "#fff")
+    .style("fill", function(d,i) {
+      return color(i);
+    });
+
+  let sum = d3.sum(data, d => d.Rainfall24hr)
+  console.log(sum);
+
+  gArcs.append("text")
+    .attr("class", "nodeText")
+    .attr({
+      "dx": "-1.53em",
+      "dy": "0.35em"
+    })
+    .attr("transform", function(d, i) {
+      // 中心點無需旋轉
+      if (i !== 0) { 
+        // 旋轉角度
+        var r = d.x + d.dx / 2; 
+        // 超過 180° 的文字調整角度，防止文字是倒的
+        var angle = Math.PI / 2;
+        r += r < Math.PI ? (angle * -1) : angle;
+        r *= 180/ Math.PI;
+
+        return "translate(" + arc.centroid(d) + ")" + "rotate(" + r + ")";
+      }
+    })
+    .text(function(d, i) {
+      if(d.value >= 100 && d.depth == 2){ 
+      return d.name;
+    }
+      if((d.value/sum) >=0.045 && d.depth == 1){ 
+      return d.name;
+     }
+    });
+
+  //滑鼠滑入事件
+  svg.selectAll("g").on('mouseover', function(d){
+    mousePos = d3.mouse(this); //取得座標
+    var xPos = mousePos[0] + radius; //修正座標
+    var yPos = mousePos[1] + radius; //修正座標
+    d3.select('#tooltip') //顯示資料
+      .style({
+        'left': xPos + 'px',
+        'top': yPos + 'px'
+      })
+      .classed('hidden', false) //切換Class
+    d3.select('#tooltip .Township').html(d.Township) //顯示資料
+    d3.select('#tooltip .County').html((d.children ? d : d.parent).name)
+    d3.select('#tooltip .value').html('$ ' + d.value)
+  }).on('mouseout', function(d){ //滑鼠移出
+    d3.select('#tooltip').classed('hidden', true) //切換Class，隱藏tooltip
+  });
+};
+
+});
+
+
+
+
+</script>
+<script src="http://static.jsbin.com/js/render/edit.js?4.0.2"></script>
+<script>jsbinShowEdit && jsbinShowEdit({"static":"http://static.jsbin.com","root":"http://jsbin.com"});</script>
+<script>
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-1656750-34', 'auto');
+ga('require', 'linkid', 'linkid.js');
+ga('require', 'displayfeatures');
+ga('send', 'pageview');
+
+</script>
+</body>
+</html>
