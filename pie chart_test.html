@@ -129,7 +129,7 @@ runChart = function(filter){
       return color(i);
     });
 
-  let sum = d3.sum(data, d => d.Rainfall24hr)
+  let sum = d3.sum(data, d => d.value)
   console.log(sum);
 
   gArcs.append("text")
@@ -152,11 +152,15 @@ runChart = function(filter){
       }
     })
     .text(function(d, i) {
-      if(d.value >= 100 && d.depth == 2){ 
+      if(d.value > 80 && d.depth == 2){ 
       return d.name;
     }
       if((d.value/sum) >=0.045 && d.depth == 1){ 
       return d.name;
+      /*大雨：24小時大於80毫米或時雨量大於40毫米。
+        豪雨：24小時累積雨量達200毫米以上，或3小時累積雨量達100毫米以上。
+        大豪雨：24小時累積雨量達350毫米以上。
+        超大豪雨：24小時累積雨量達500毫米以上。*/
      }
     });
 
