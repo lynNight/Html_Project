@@ -94,7 +94,7 @@ function reSortRoot(root,value_key) {
 runChart = function(filter){  
   console.log(data)
   var nodesByType = d3.nest() //轉換成巢狀架構
-    .key(function(d) { return d.County; })
+    //.key(function(d) { return d.County; })
     .key(function(d) { return d.Township; })
     .key(function(d) { return d.SiteName; })
     .entries(data);
@@ -109,7 +109,7 @@ runChart = function(filter){
 
   // size 指定圖案大小, 利用 .nodes 帶入資料
   var nodes = d3.layout.partition()
-                .size([2 * Math.PI, radius * radius*1.5])
+                .size([2 * Math.PI, radius * radius*1.2])
                 .nodes(root);                
   
   var color = d3.scale.category20();
@@ -121,7 +121,8 @@ runChart = function(filter){
   gArcs.append("path")
     .attr("display", function(d) { //圆中心的弧不绘制
       //return d.depth ? null : "none";
-      return (d.depth <= 2 ) && d.depth ? null : "none";
+      return (d.depth <= 2) && d.depth ? null : "none";
+      //return (d.depth <= 3 && d.depth >= 2) && d.depth ? null : "none";
     })
     .attr("d", arc) //使用弧生成器
     .style("stroke", "#fff")
@@ -152,16 +153,17 @@ runChart = function(filter){
       }
     })
     .text(function(d, i) {
-      if(d.value > 80 && d.depth == 2){ 
+      if(d.value > 40 && d.depth >= 1){ 
+      //if(d.depth >= 2){
       return d.name;
     }
-      if((d.value/sum) >=0.045 && d.depth == 1){ 
-      return d.name;
+      //if((d.value/sum) >=0.045 && d.depth == 1){ 
+      //return d.name;
       /*大雨：24小時大於80毫米或時雨量大於40毫米。
         豪雨：24小時累積雨量達200毫米以上，或3小時累積雨量達100毫米以上。
         大豪雨：24小時累積雨量達350毫米以上。
         超大豪雨：24小時累積雨量達500毫米以上。*/
-     }
+     //}
     });
 
   //滑鼠滑入事件
@@ -175,8 +177,8 @@ runChart = function(filter){
         'top': yPos + 'px'
       })
       .classed('hidden', false) //切換Class
-    d3.select('#tooltip .Township').html(d.Township) //顯示資料
-    d3.select('#tooltip .County').html((d.children ? d : d.parent).name)
+    d3.select('#tooltip .SiteName').html(d.SiteName) //顯示資料
+    d3.select('#tooltip .Township').html((d.children ? d : d.parent).name)
     d3.select('#tooltip .value').html('$ ' + d.value)
   }).on('mouseout', function(d){ //滑鼠移出
     d3.select('#tooltip').classed('hidden', true) //切換Class，隱藏tooltip
