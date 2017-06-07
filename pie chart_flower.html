@@ -93,11 +93,17 @@ function reSortRoot(root,value_key) {
 
 runChart = function(filter){  
   console.log(data)
+  var newData =[];
+  $.each(data, function(i,d){
+    if (d.County == "南投縣"){     
+    newData.push(d);
+    }
+  });
   var nodesByType = d3.nest() //轉換成巢狀架構
     //.key(function(d) { return d.County; })
     .key(function(d) { return d.Township; })
     .key(function(d) { return d.SiteName; })
-    .entries(data);
+    .entries(newData);
   console.log(nodesByType, "基本d3.js巢狀結構轉換")
   var root = {};
   // 將資料命名
@@ -153,8 +159,8 @@ runChart = function(filter){
       }
     })
     .text(function(d, i) {
-      if(d.value > 40 && d.depth >= 1){ 
-      //if(d.depth >= 2){
+      if(d.value >= 10 ){ 
+      //if(d.depth >= 1){
       return d.name;
     }
       //if((d.value/sum) >=0.045 && d.depth == 1){ 
